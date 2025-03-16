@@ -139,7 +139,10 @@ The staff will only test inter-node scaling using the default memory segment siz
 Note that in order to compile and run the code, you'll first need to load the appropriate UPC++ modules.
 
 ```
+module spider upcxx
+# edit modules.sh for current release of UPCxx
 source modules.sh
+
 ```
 
 You should then be able to build and run the starter code.
@@ -270,3 +273,18 @@ Your write-up should contain:
 ### References
 
 [1] Jarrod A. Chapman, Isaac Ho, Sirisha Sunkara, Shujun Luo, Gary P. Schroth, and Daniel S. Rokhsar. Meraculous: De novo genome assembly with short paired-end reads. PLoS ONE, 6(8):e23501, 08 2011.
+
+https://people.eecs.berkeley.edu/~aydin/sc15_genome.pdf
+
+https://upcxx.lbl.gov/docs/html/guide.html#remote-procedure-calls
+
+https://www.cs.jhu.edu/~langmea/resources/lecture_notes/assembly_dbg.pdf
+
+Why are de Bruijn graphs useful for genome assembly?
+https://pmc.ncbi.nlm.nih.gov/articles/PMC5531759/
+
+Parallelizing Irregular Applications for Distributed Memory Scalability: Case Studies from
+Genomics
+https://escholarship.org/content/qt1400c4rh/qt1400c4rh_noSplash_a3cca84fb0d7680a6f6809fecedc182f.pdf
+
+https://bitbucket.org/berkeleylab/upcxx/src/master/example/prog-guide/dmap.hpp
