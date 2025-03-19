@@ -1,21 +1,7 @@
-Need to compile with:
-
-```
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=CC ..
-cmake --build .
-```
-
-# Homework 3:
-Parallelizing Genome Assembly
-## Introduction
-Due Date: April, 11th, 2024 at 11:59 PM. FIXME!!!
-
-## Introduction
+# Homework 3: Parallelizing Genome Assembly
+Due Date: April, 11th, 2025 at 11:59 PM.
 
 This assignment is an introduction to writing distributed memory programs for applications with irregular communication patterns. Here we will implement a distributed hash table using UPC++. We will use our distributed hash table to evaluate one stage of a de novo genome assembly pipeline.
-Due Date: April, 11th, 2024 at 11:59 PM. FIXME!!!
 
 ## For Remote Students
 
@@ -49,7 +35,7 @@ Our k-mers are guaranteed to be unique and to overlap one another by exactly k-1
 
 Some k-mers are special, in that they have the special forward or backward extension F (which is not one of the regular A,T,C, or G bases we'd expect in DNA).  The special base F indicates the beginning or end of a read.  We call k-mers with the backward extension F start k-mers, since they are the k-mers which start a contig.  Similarly, k-mers with the forward extension F are end k-mers, since they end a contig.
 
-## K-Mer Traversal Algorithm
+### K-Mer Traversal Algorithm
 
 To generate contigs, we will begin by inserting all the k-mers into a hash table.  While we are inserting the k-mers, we will check for any special start k-mers with backward extension F and append them to a list of start k-mers.  After building the hash table and identifying our start k-mers, we can generate a contig for each start k-mer by searching for the next k-mer in the sequence until we find an end k-mer with forward extension F, which signifies the end of the contig.
 
@@ -91,6 +77,7 @@ In the starter code, you will find a serial implementation of the contig generat
 The starter code is available on github at https://github.com/Berkeley-CS267/hw3  
 
 Here's a rundown of the files you'll find in the starter code tarball.  kmer_hash.cpp and hash_map.hpp are the main files you'll be modifying.  You won't necessarily need to understand how the other source files work, just how to use the kmer_pair and pkmer_t data structures.
+
 ```
 cs267_hw3_2023 (a folder)
   |----CMakeLists.txt   - Builds the kmer_hash binary, which does contig generation.
@@ -106,7 +93,7 @@ cs267_hw3_2023 (a folder)
 
 In hash_map.cpp, you'll find a serial implementation of a hash table using open addressing.  If this sounds unfamiliar to you, go ahead and skim the Wikipedia pages on hash tables and open addressing.  A hash table uses a hash function to decide at which location in an array to store an item.  This allows fast random access using a key value.  When two keys produce the same hash value, there is a conflict, since we cannot store two items at the same location in an array.  One way to resolve these collisions is open addressing, which resolves conflicts by probing the array with some deterministic probing strategy until a free spot is found.  The starter code uses open addressing with linear probing, which means we just try the next slot in the array until we find a free slot for our item.
 
-## In Distributed Memory
+### In Distributed Memory
 
 In order to parallelize the code, you'll need to modify the data and used data members of the hash map to refer to distributed objects and then modify the insert() and find() methods accordingly. A common way to implement a distributed array in UPC++ is to create a C++ vector of upcxx::global_ptrs that point to arrays allocated in the shared segment on each rank.  You can then view the distributed array as one logically contiguous array and use arithmetic to write to the appropriate location in shared memory.
 
@@ -137,29 +124,24 @@ The staff will only test inter-node scaling using the default memory segment siz
 ## Building and Running the Code
 
 Note that in order to compile and run the code, you'll first need to load the appropriate UPC++ modules.
-
 ```
-module spider upcxx
-# edit modules.sh for current release of UPCxx
 source modules.sh
-
 ```
 
 You should then be able to build and run the starter code.
 
 ```
-[demmel@perlmutter cs267_hw3_2020]$ mkdir build
-[demmel@perlmutter cs267_hw3_2020]$ cd build
+[demmel@perlmutter cs267_hw3_2025]$ mkdir build
+[demmel@perlmutter cs267_hw3_2025]$ cd build
 [demmel@perlmutter build]$ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=CC ..
 [demmel@perlmutter build]$ cmake --build .
 ...
-
 (For 19-mers)[demmel@perlmutter build]$ salloc -N 1 -A mp309 -t 10:00 --qos=interactive -C cpu srun -N 1 -n 1 ./kmer_hash_19 [my_dataset]
 (For 51-mers)[demmel@perlmutter build]$ salloc -N 1 -A mp309 -t 10:00 --qos=interactive -C cpu srun -N 1 -n 1 ./kmer_hash_51 [my_dataset]
-
 ```
 
-`[my_dataset]` is the dataset of k-mers you'd like to assemble contigs for.  You can find k-mer datasets in `/global/cfs/cdirs/mp309/cs267-spr2020/hw3-datasets/` or `$CFS/mp309/cs267-spr2020/hw3-datasets/`. Both refer to the same location.
+
+[my_dataset] is the dataset of k-mers you'd like to assemble contigs for.  You can find k-mer datasets in /global/cfs/cdirs/mp309/cs267-spr2025/hw3-datasets/ or $CFS/mp309/cs267-spr2025/hw3-datasets/. Both refer to the same location.
 
 Here's a rundown of the various datasets.
 ```
@@ -174,17 +156,16 @@ Here's a rundown of the various datasets.
 
 ### [IMPORTANT] Recompiling for Different Sizes of K-Mers
 
-Note that to run on the larger dataset, `human-chr14-synthetic.txt`, you'll need to recompile your code to handle 51-mers instead of 19-mers.  Simply modify the KMER_LEN macro at the top of packing.hpp, then recompile.  You'll need to do the same thing in reverse if you later want to switch back to 19-mers.  If you try to run your code on a dataset with the wrong kind of k-mer, it will automatically exit with an error telling you to modify packing.hpp and recompile. Note: The new CMake file should already be able to generate two compiled files, one with the length set to 19 and one with the length set to 51. You shouldn't have to manually set it anymore.
+Note that to run on the larger dataset, human-chr14-synthetic.txt, you'll need to recompile your code to handle 51-mers instead of 19-mers.  Simply modify the KMER_LEN macro at the top of packing.hpp, then recompile.  You'll need to do the same thing in reverse if you later want to switch back to 19-mers.  If you try to run your code on a dataset with the wrong kind of k-mer, it will automatically exit with an error telling you to modify packing.hpp and recompile. Note: The new CMake file should already be able to generate two compiled files, one with the length set to 19 and one with the length set to 51. You shouldn't have to manually set it anymore.
 
 ## Optimizing File I/O
 
 File I/O between the project directory (where we've stashed the datasets) and the compute nodes can be quite slow, particularly for large files.  We recommend you (1) copy the datasets to a folder in your scratch space and (2) set the folder with your datasets to be striped.  Striping will spread out the files in your directory so that different parts are located on different physical hard disks (in Lustre file system lingo, these are called "OSTs", or object storage targets).  This can sometimes slow down serial I/O slightly, but will significantly increase I/O performance when reading one file from multiple nodes.
-
 ```
 [demmel@perlmutter:$SCRATCH/cs267_hw3_2023]$ mkdir my_datasets
 [demmel@perlmutter:$SCRATCH/cs267_hw3_2023]$ lfs setstripe -c 72 -S 8M my_datasets/
 [demmel@perlmutter:$SCRATCH/cs267_hw3_2023]$ cd my_datasets
-[demmel@perlmutter:$SCRATCH/cs267_hw3_2023/my_datasets]$ cp -r /global/cfs/cdirs/mp309/cs267-spr2020/hw3-datasets/* .
+[demmel@perlmutter:$SCRATCH/cs267_hw3_2023/my_datasets]$ cp -r /global/cfs/cdirs/mp309/cs267-spr2025/hw3-datasets/* .
 ```
 
 You can then call kmer_hash with the datasets in $SCRATCH/cs267_hw3_2023/my_datasets, and your runs should be somewhat faster.  Note that this is optional, and will not improve your timed performance, since we don't time file I/O in kmer_hash.  However, your runs will finish faster.  If you like, you can read more about file system performance here.
@@ -192,7 +173,6 @@ You can then call kmer_hash with the datasets in $SCRATCH/cs267_hw3_2023/my_data
 ## Testing Correctness
 
 You'll need to test that your parallel code is correct.  To do this, run your parallel code with the optional test parameter.  This will cause each process to print out its generated contigs to a file test_[rank].dat where [rank] is the process's rank number.  To compare, just combine and sort the output files, then compare the result to the reference solutions located in the same directories as the input files.
-
 ```
 [demmel@perlmutter build]$ salloc -N 1 -A mp309 -t 10:00 -q debug --qos=interactive -C cpu srun -N 1 -n 32 ./kmer_hash_19 my_datasets/test.txt test
 [demmel@perlmutter build]$ cat test*.dat | sort > my_solution.txt
@@ -270,9 +250,24 @@ Your write-up should contain:
 
     I find this early paper on Titanium quite interesting, as there are a lot of pioneering features for such an early project.  Smart pointers, in distributed memory, in 1998!
 
-### References
+## Troubleshooting
+
+    If you are having RPC calls randomly hanging/getting lost, try running export GASNET_OFI_RECEIVE_BUFF_SIZE=single.
+
+
+    If you are still running into issues, per the FAQ on berkeleylab / upcxx / wiki / FAQ — Bitbucket 
+
+> "Can you make an RPC call from within a RPC callback? When I try to wait on the nested RPC I get an error/hang."
+
+Out of all the implementations that hang, this is the most likely reason. The simplest way is to avoid nested rpc calls. 
+
+A simple approach that doesn't hang is to simply return the first rpc, and check the success status. If it fails, then invoke the next rpc from the master process. What this means is that suppose process 0 made the insert request to process 1, and process 1 no longer has any spots left. Instead doing a nested rpc call from process 1 to some process, say process 2, simply report failure back to process 0, and let process 0 make the rpc call to process 2.
+
+## References
 
 [1] Jarrod A. Chapman, Isaac Ho, Sirisha Sunkara, Shujun Luo, Gary P. Schroth, and Daniel S. Rokhsar. Meraculous: De novo genome assembly with short paired-end reads. PLoS ONE, 6(8):e23501, 08 2011.
+
+## Additional References
 
 https://people.eecs.berkeley.edu/~aydin/sc15_genome.pdf
 
