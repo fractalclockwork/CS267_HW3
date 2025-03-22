@@ -3,6 +3,7 @@ Due Date: April, 11th, 2025 at 11:59 PM.
 
 This assignment is an introduction to writing distributed memory programs for applications with irregular communication patterns. Here we will implement a distributed hash table using UPC++. We will use our distributed hash table to evaluate one stage of a de novo genome assembly pipeline.
 
+### Contributors: Brent Thorne, Kofi Mireku, Puja Madgula
 ## For Remote Students
 
 Dear remote students, we are thrilled to be a part of your parallel computing learning experience and to share these resources with you! To avoid confusion, please note that the assignment instructions, deadlines, and other assignment details posted here were designed for the local students. You should check with your local instruction team about submission, deadlines, job-running details, etc. and utilize Moodle for questions. With that in mind, the problem statement, source code, and references should still help you get started (just beware of institution-specific instructions). Best of luck and we hope you enjoy the assignment!
