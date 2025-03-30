@@ -79,7 +79,7 @@ The starter code is available on github at https://github.com/Berkeley-CS267/hw3
 Here's a rundown of the files you'll find in the starter code tarball.  kmer_hash.cpp and hash_map.hpp are the main files you'll be modifying.  You won't necessarily need to understand how the other source files work, just how to use the kmer_pair and pkmer_t data structures.
 
 ```
-cs267_hw3_2023 (a folder)
+hw3 (root folder)
   |----CMakeLists.txt   - Builds the kmer_hash binary, which does contig generation.
   |----kmer_hash.cpp    - The main kmer hash file. /* YOU CAN MODIFY THIS */
   |----hash_map.hpp     - The hash table.  This is the main data structure you'll be parallelizing. /* YOU CAN MODIFY THIS */
@@ -283,3 +283,13 @@ Genomics
 https://escholarship.org/content/qt1400c4rh/qt1400c4rh_noSplash_a3cca84fb0d7680a6f6809fecedc182f.pdf
 
 https://bitbucket.org/berkeleylab/upcxx/src/master/example/prog-guide/dmap.hpp
+
+UPC++ v1.0 Training Materials: THIS!!!
+
+https://bitbucket.org/berkeleylab/upcxx/wiki/Training
+
+https://bitbucket.org/berkeleylab/cuf23/downloads/cuf23-upcxx.pdf
+
+https://sites.google.com/lbl.gov/exabiome/home?authuser=0
+
+https://bitbucket.org/berkeleylab/mhm2/src/master/
