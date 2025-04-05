@@ -11,132 +11,93 @@
 #include "hash_map.hpp"
 #include "kmer_t.hpp"
 #include "read_kmers.hpp"
-
 #include "butil.hpp"
 
 int main(int argc, char** argv) {
     upcxx::init();
 
-    // TODO: Dear Students,
-    // Please remove this if statement, when you start writing your parallel implementation.
-    if (upcxx::rank_n() > 1) {
-        throw std::runtime_error("Error: parallel implementation not started yet!"
-                                 " (remove this when you start working.)");
-    }
-
     if (argc < 2) {
-        BUtil::print("usage: srun -N nodes -n ranks ./kmer_hash kmer_file [verbose|test [prefix]]\n");
+        BUtil::print("Usage: srun -N nodes -n ranks ./kmer_hash kmer_file [verbose|test [prefix]]\n");
         upcxx::finalize();
-        exit(1);
+        return 1;
     }
 
-    std::string kmer_fname = std::string(argv[1]);
-    std::string run_type = "";
-
-    if (argc >= 3) {
-        run_type = std::string(argv[2]);
-    }
-
-    std::string test_prefix = "test";
-    if (run_type == "test" && argc >= 4) {
-        test_prefix = std::string(argv[3]);
-    }
+    std::string kmer_fname = argv[1];
+    std::string run_type = (argc >= 3) ? argv[2] : "";
+    std::string test_prefix = (run_type == "test" && argc >= 4) ? argv[3] : "test";
 
     int ks = kmer_size(kmer_fname);
-
     if (ks != KMER_LEN) {
         throw std::runtime_error("Error: " + kmer_fname + " contains " + std::to_string(ks) +
                                  "-mers, while this binary is compiled for " +
-                                 std::to_string(KMER_LEN) +
-                                 "-mers.  Modify packing.hpp and recompile.");
+                                 std::to_string(KMER_LEN) + "-mers.");
     }
 
     size_t n_kmers = line_count(kmer_fname);
-
-    // Load factor of 0.5
     size_t hash_table_size = n_kmers * (1.0 / 0.5);
-    HashMap hashmap(hash_table_size);
 
-    if (run_type == "verbose") {
-        BUtil::print("Initializing hash table of size %d for %d kmers.\n", hash_table_size,
-                     n_kmers);
-    }
+    int rank_id = upcxx::rank_me();
+    int world_size = upcxx::rank_n();
+    DistributedHashMap hashmap(hash_table_size, rank_id, world_size);
 
-    std::vector<kmer_pair> kmers = read_kmers(kmer_fname, upcxx::rank_n(), upcxx::rank_me());
+    std::vector<kmer_pair> kmers = read_kmers(kmer_fname, world_size, rank_id);
 
-    if (run_type == "verbose") {
-        BUtil::print("Finished reading kmers.\n");
-    }
+    std::cout << "Rank " << rank_id << " processing " << kmers.size() << " kmers." << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
 
     std::vector<kmer_pair> start_nodes;
-
     for (auto& kmer : kmers) {
-        bool success = hashmap.insert(kmer);
-        if (!success) {
-            throw std::runtime_error("Error: HashMap is full!");
-        }
+        hashmap.insert(kmer.kmer_str(), kmer).wait();
 
         if (kmer.backwardExt() == 'F') {
             start_nodes.push_back(kmer);
         }
     }
-    auto end_insert = std::chrono::high_resolution_clock::now();
-    upcxx::barrier();
 
-    double insert_time = std::chrono::duration<double>(end_insert - start).count();
-    if (run_type != "test") {
-        BUtil::print("Finished inserting in %lf\n", insert_time);
-    }
     upcxx::barrier();
+    std::cout << "Rank " << rank_id << " identified " << start_nodes.size() << " start nodes." << std::endl;
 
     auto start_read = std::chrono::high_resolution_clock::now();
-
     std::list<std::list<kmer_pair>> contigs;
+
     for (const auto& start_kmer : start_nodes) {
         std::list<kmer_pair> contig;
         contig.push_back(start_kmer);
+
         while (contig.back().forwardExt() != 'F') {
-            kmer_pair kmer;
-            bool success = hashmap.find(contig.back().next_kmer(), kmer);
+            kmer_pair found;
+            bool success = hashmap.find(contig.back().next_kmer().get(), found).wait();
+
             if (!success) {
-                throw std::runtime_error("Error: k-mer not found in hashmap.");
+                std::cout << "Rank " << rank_id << " contig assembly failed at key: " << contig.back().kmer_str() << std::endl;
+                break;
             }
-            contig.push_back(kmer);
+
+            std::cout << "Rank " << rank_id << " extending contig with key: " << found.kmer_str() << std::endl;
+            contig.push_back(found);
         }
         contigs.push_back(contig);
     }
 
-    auto end_read = std::chrono::high_resolution_clock::now();
     upcxx::barrier();
-    auto end = std::chrono::high_resolution_clock::now();
+    auto end_read = std::chrono::high_resolution_clock::now();
 
-    std::chrono::duration<double> read = end_read - start_read;
-    std::chrono::duration<double> insert = end_insert - start;
-    std::chrono::duration<double> total = end - start;
+    std::cout << "Rank " << rank_id << " assembled " << contigs.size() << " contigs." << std::endl;
 
-    int numKmers = std::accumulate(
-        contigs.begin(), contigs.end(), 0,
-        [](int sum, const std::list<kmer_pair>& contig) { return sum + contig.size(); });
-
-    if (run_type != "test") {
-        BUtil::print("Assembled in %lf total\n", total.count());
-    }
-
-    if (run_type == "verbose") {
-        printf("Rank %d reconstructed %d contigs with %d nodes from %d start nodes."
-               " (%lf read, %lf insert, %lf total)\n",
-               upcxx::rank_me(), contigs.size(), numKmers, start_nodes.size(), read.count(),
-               insert.count(), total.count());
-    }
-
+    // Write contigs to file in append mode to prevent overwrites
     if (run_type == "test") {
-        std::ofstream fout(test_prefix + "_" + std::to_string(upcxx::rank_me()) + ".dat");
-        for (const auto& contig : contigs) {
-            fout << extract_contig(contig) << std::endl;
+        std::ofstream fout(test_prefix + "_" + std::to_string(rank_id) + ".dat", std::ios::app);
+        if (fout.fail()) {
+            std::cerr << "Rank " << rank_id << ": Failed to open output file." << std::endl;
+        } else {
+            std::cout << "Rank " << rank_id << " writing " << contigs.size() << " contigs to file." << std::endl;
+            for (const auto& contig : contigs) {
+                fout << extract_contig(contig) << std::endl;
+            }
+            fout.flush();
+            fout.close();
         }
-        fout.close();
     }
 
     upcxx::finalize();
