@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
 
     std::vector<kmer_pair> start_nodes;
     for (auto& kmer : kmers) {
-        hashmap.insert(kmer.kmer_str(), kmer).wait();
+        hashmap.insert(kmer.kmer_str(), kmer);
         if (kmer.backwardExt() == 'F') {
             start_nodes.push_back(kmer);
         }
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
         contig.push_back(start_kmer);
         while (contig.back().forwardExt() != 'F') {
             kmer_pair found;
-            bool success = hashmap.find(contig.back().next_kmer().get(), found).wait();
+            bool success = hashmap.find(contig.back().next_kmer().get(), found);
             if (!success) {
                 throw std::runtime_error("Error: k-mer not found in hashmap.");
             }
