@@ -31,8 +31,17 @@ OUTPUT_FILE="${ROOT_NAME}_test.txt"
 # Remove existing test output files
 rm -f test_*.dat
 
-# Run the processing commands
-salloc -N "$NODES" -A mp309 -t 10:00 -q debug --qos=interactive -C cpu srun -N "$NODES" -n "$THREADS" ./kmer_hash_19 "$INPUT_FILE" test
+# Construct the command
+CMD="salloc -N $NODES -A mp309 -t 10:00 -q debug --qos=interactive -C cpu srun -N $NODES -n $THREADS ./kmer_hash_19 $INPUT_FILE test"
+
+# Echo the command before execution
+echo "Running command: $CMD"
+
+# Run the command and check for errors
+if ! eval "$CMD"; then
+    echo "ERROR: Execution failed."
+    exit 1
+fi
 
 # Verify that rank output files exist before sorting
 if ls test_*.dat 1> /dev/null 2>&1; then

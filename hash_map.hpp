@@ -66,6 +66,5 @@ public:
 
     void synchronize() {
         upcxx::barrier();
-        std::cout << "Rank " << rank_id_ << " stored " << local_map->size() << " k-mers in its hash table." << std::endl;
     }
 };
