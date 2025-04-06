@@ -27,11 +27,29 @@ INPUT_DIR=$(dirname "$INPUT_FILE")        # Get the directory of the input file
 
 EXPECTED_FILE="${INPUT_DIR}/${ROOT_NAME}_solution.txt"
 OUTPUT_FILE="${ROOT_NAME}_test.txt"
-DATA_FILE="test_$((THREADS-1)).dat"  # Adjusted output filename based on threads
 
-# Run the processing commands
-salloc -N "$NODES" -A mp309 -t 10:00 -q debug --qos=interactive -C cpu srun -N "$NODES" -n "$THREADS" ./kmer_hash_19 "$INPUT_FILE" test
-sort "$DATA_FILE" > "$OUTPUT_FILE"
+# Remove existing test output files
+rm -f test_*.dat
+
+# Construct the command
+CMD="salloc -N $NODES -A mp309 -t 10:00 -q debug --qos=interactive -C cpu srun -N $NODES -n $THREADS ./kmer_hash_19 $INPUT_FILE test"
+
+# Echo the command before execution
+echo "Running command: $CMD"
+
+# Run the command and check for errors
+if ! eval "$CMD"; then
+    echo "ERROR: Execution failed."
+    exit 1
+fi
+
+# Verify that rank output files exist before sorting
+if ls test_*.dat 1> /dev/null 2>&1; then
+    cat test_*.dat | sort > "$OUTPUT_FILE"
+else
+    echo "ERROR: Missing output files from ranks"
+    exit 1
+fi
 
 # Compare results
 if diff -q "$OUTPUT_FILE" "$EXPECTED_FILE"; then
