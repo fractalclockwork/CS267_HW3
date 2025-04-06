@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
         contig.push_back(start_kmer);
         while (contig.back().forwardExt() != 'F') {
             kmer_pair found;
-            bool success = hashmap.find(contig.back().next_kmer().get(), found);
+            bool success = hashmap.find(contig.back().next_kmer().get(), found).wait();
             if (!success) {
                 throw std::runtime_error("Error: k-mer not found in hashmap.");
             }

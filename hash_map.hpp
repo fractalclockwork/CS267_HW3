@@ -1,5 +1,4 @@
 #pragma once
-#include <upcxx/upcxx.hpp>
 #include <unordered_map>
 #include <string>
 #include "kmer_t.hpp"
@@ -20,45 +19,51 @@ public:
     DistributedHashMap(size_t table_size, int rank_id, int world_size)
         : table_size_(table_size), rank_id_(rank_id), world_size_(world_size), local_map({}) {}
 
-    void insert(const std::string &key, const kmer_pair &value) {
+    upcxx::future<> insert(const std::string &key, const kmer_pair &value) {
         int target_rank = get_target_rank(key);
         if (target_rank == rank_id_) {
             local_map->insert({key, value});
+            return upcxx::make_future();
         } else {
-            upcxx::rpc(target_rank,
+            return upcxx::rpc(target_rank,
                 [](dobj_map_t &lmap, const std::string &key, const kmer_pair &value) {
                     lmap->insert({key, value});
                 },
-                local_map, key, value).wait(); // Ensure immediate consistency
+                local_map, key, value);
         }
     }
 
-    bool find(const std::string &key, kmer_pair &result) {
+    upcxx::future<bool> find(const std::string &key, kmer_pair &result) {
         int target_rank = get_target_rank(key);
         if (target_rank == rank_id_) {
             auto it = local_map->find(key);
             if (it == local_map->end()) {
-                return false;
+                return upcxx::make_future(false);
             }
             result = it->second;
-            return true;
+            return upcxx::make_future(true);
         } else {
-            kmer_pair found_kmer = upcxx::rpc(target_rank,
+            return upcxx::rpc(target_rank,
                 [](dobj_map_t &lmap, const std::string &key) -> kmer_pair {
                     auto it = lmap->find(key);
                     return (it != lmap->end()) ? it->second : kmer_pair();
                 },
-                local_map, key).wait(); // Wait for result immediately
-            
-            if (!found_kmer.kmer_str().empty()) {
-                result = found_kmer;
-                return true;
-            }
-            return false;
+                local_map, key
+            ).then([&result](kmer_pair found_kmer) {
+                if (!found_kmer.kmer_str().empty()) {
+                    result = found_kmer;
+                    return true;
+                }
+                return false;
+            });
         }
     }
 
     void process_requests() {
-        upcxx::progress(upcxx::progress_level::user);
+        upcxx::progress();
+    }
+
+    void synchronize() {
+        upcxx::barrier();
     }
 };
