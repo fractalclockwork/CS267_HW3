@@ -1,23 +1,37 @@
-test.txt
-Finished:0.110326
-Assembled:1.648523
+human-chr14-synthetic.txt:
+file_size(bytes): 4934090810 
+contigs(n): 860329
+insertion_time(secs): 4.292866
+assembly_time(secs): 42.117088
 
-small.txt
-Finished:0.014863
-Assembled:0.326189
+test.txt:
+file_size(bytes): 103826531
+contigs(n): 5736
+insertion_time(secs): 0.110326
+assembly_time(secs): 1.648523
 
-little.txt
-Finished:0.001739
-Assembled:0.042616
+small.txt:
+file_size(bytes): 22473576
+contigs(n): 1000
+insertion_time(secs): 0.014863
+assembly_time(secs): 0.326189
 
-verysmall.txt
-Finished:0.000252
-Assembled:0.005782
+little.txt: 
+file_size(bytes): 3354849
+contigs(n): 100
+insertion_time(secs): 0.001739
+assembly_time(secs): 0.042616
 
-tiny.txt
-Finished:0.000038
-Assembled:0.001006
+verysmall.txt:
+file_size(bytes): 470672
+contigs(n): 10
+insertion_time(secs): 0.000252
+assembly_time(secs): 0.005782
 
-human-chr14-synthetic.txt
-Finished:4.292866
-Assembled:42.117088
+tiny.txt: 
+file_size(bytes): 82340
+contigs(n): 1
+insertion_time(secs): 0.000038
+assembly_time(secs): 0.001006
+
+total_contigs(n): 867176 
