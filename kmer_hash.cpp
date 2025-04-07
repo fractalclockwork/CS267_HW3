@@ -17,35 +17,38 @@
 void initialize_kmers(DistributedHashMap &hashmap, 
     const std::vector<kmer_pair> &kmers, 
     std::vector<kmer_pair> &start_nodes) {
-for (const auto &kmer : kmers) {
-hashmap.insert(kmer.kmer_str(), kmer); // Insert each kmer one by one
-if (kmer.backwardExt() == 'F') {
-start_nodes.push_back(kmer);
-}
-}
+    for (const auto &kmer : kmers) {
+        hashmap.insert(kmer.kmer_str(), kmer); // Insert each kmer one by one
+        if (kmer.backwardExt() == 'F') {
+            start_nodes.push_back(kmer);
+        }
+    }
+
+    // Process any pending RPCs after insertion to ensure consistency
+    hashmap.process_requests();
 }
 
 // Function to assemble contigs from the start nodes using the Distributed HashMap
 std::list<std::list<kmer_pair>> assemble_contigs(DistributedHashMap &hashmap, 
                                const std::vector<kmer_pair> &start_nodes) {
-std::list<std::list<kmer_pair>> contigs;
+    std::list<std::list<kmer_pair>> contigs;
 
-for (const auto &start_kmer : start_nodes) {
-std::list<kmer_pair> contig;
-contig.push_back(start_kmer);
+    for (const auto &start_kmer : start_nodes) {
+        std::list<kmer_pair> contig;
+        contig.push_back(start_kmer);
 
-while (contig.back().forwardExt() != 'F') {
-kmer_pair found;
-bool success = hashmap.find(contig.back().next_kmer().get(), found);  // No .wait()
-if (!success) {
-throw std::runtime_error("Error: k-mer not found in hashmap.");
-}
-contig.push_back(found);
-}
-contigs.push_back(contig);
-}
+        while (contig.back().forwardExt() != 'F') {
+            kmer_pair found;
+            bool success = hashmap.find(contig.back().next_kmer().get(), found); // Use the optimized find method
+            if (!success) {
+                throw std::runtime_error("Error: k-mer not found in hashmap.");
+            }
+            contig.push_back(found);
+        }
+        contigs.push_back(contig);
+    }
 
-return contigs;
+    return contigs;
 }
 
 // Function to output the results after assembling the contigs
