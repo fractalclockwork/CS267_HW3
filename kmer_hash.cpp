@@ -7,60 +7,19 @@
 #include <vector>
 #include <chrono>
 #include <fstream>
+#include <stdexcept>
+#include <string>
 
-#include "hash_map.hpp"
-#include "kmer_t.hpp"
-#include "read_kmers.hpp"
-#include "butil.hpp"
+// Include necessary headers
+#include "hash_map.hpp"   // Generic DistributedHashMap
+#include "kmer_t.hpp"     // K-mer data structure
+#include "read_kmers.hpp" // Handles k-mer file reading
+#include "butil.hpp"      // Utility functions
 
-// Function to initialize kmers into the Distributed HashMap
-void initialize_kmers(DistributedHashMap &hashmap, 
-    const std::vector<kmer_pair> &kmers, 
-    std::vector<kmer_pair> &start_nodes) {
-    for (const auto &kmer : kmers) {
-        hashmap.insert(kmer.kmer_str(), kmer); // Insert each kmer one by one
-        if (kmer.backwardExt() == 'F') {
-            start_nodes.push_back(kmer);
-        }
-    }
-
-    // Process any pending RPCs after insertion to ensure consistency
-    hashmap.process_requests();
-}
-
-// Function to assemble contigs from the start nodes using the Distributed HashMap
-std::list<std::list<kmer_pair>> assemble_contigs(DistributedHashMap &hashmap, 
-                               const std::vector<kmer_pair> &start_nodes) {
-    std::list<std::list<kmer_pair>> contigs;
-
-    for (const auto &start_kmer : start_nodes) {
-        std::list<kmer_pair> contig;
-        contig.push_back(start_kmer);
-
-        while (contig.back().forwardExt() != 'F') {
-            kmer_pair found;
-            bool success = hashmap.find(contig.back().next_kmer().get(), found); // Use the optimized find method
-            if (!success) {
-                throw std::runtime_error("Error: k-mer not found in hashmap.");
-            }
-            contig.push_back(found);
-        }
-        contigs.push_back(contig);
-    }
-
-    return contigs;
-}
-
-// Function to output the results after assembling the contigs
-void output_results(const std::list<std::list<kmer_pair>> &contigs, 
-                    const std::string &test_prefix, int rank_id) {
-    std::ofstream fout(test_prefix + "_" + std::to_string(rank_id) + ".dat");
-    for (const auto &contig : contigs) {
-        fout << extract_contig(contig) << std::endl;
-    }
-}
-
-// Function to initialize the UPC++ environment and handle command-line arguments
+//------------------------------------------------------
+// Function: initialize_upcxx
+// Parses command-line arguments, determines k-mer parameters, and sets up UPC++ values.
+//------------------------------------------------------
 void initialize_upcxx(int argc, char **argv, 
                       std::string &kmer_fname, std::string &run_type, std::string &test_prefix,
                       int &ks, size_t &n_kmers, size_t &hash_table_size, int &rank_id, int &world_size) {
@@ -87,7 +46,63 @@ void initialize_upcxx(int argc, char **argv,
     world_size = upcxx::rank_n();
 }
 
-// Main function to execute the overall program
+//------------------------------------------------------
+// Function: initialize_kmers
+// Inserts k-mers into the distributed hash map and records "start nodes."
+//------------------------------------------------------
+void initialize_kmers(DistributedHashMap<std::string, kmer_pair> &hashmap, 
+                      const std::vector<kmer_pair> &kmers, 
+                      std::vector<kmer_pair> &start_nodes) {
+    for (const auto &kmer : kmers) {
+        hashmap.insert(kmer.kmer_str(), kmer);
+        if (kmer.backwardExt() == 'F') {
+            start_nodes.push_back(kmer);
+        }
+    }
+    hashmap.process_requests();
+}
+
+//------------------------------------------------------
+// Function: assemble_contigs
+// Traverses the hash map from the start nodes, linking consecutive k-mers.
+//------------------------------------------------------
+std::list<std::list<kmer_pair>> assemble_contigs(DistributedHashMap<std::string, kmer_pair> &hashmap, 
+                                                 const std::vector<kmer_pair> &start_nodes) {
+    std::list<std::list<kmer_pair>> contigs;
+
+    for (const auto &start_kmer : start_nodes) {
+        std::list<kmer_pair> contig;
+        contig.push_back(start_kmer);
+
+        while (contig.back().forwardExt() != 'F') {
+            kmer_pair found;
+            bool success = hashmap.find(contig.back().next_kmer().get(), found);
+            if (!success) {
+                throw std::runtime_error("Error: k-mer not found in hashmap.");
+            }
+            contig.push_back(found);
+        }
+        contigs.push_back(contig);
+    }
+
+    return contigs;
+}
+
+//------------------------------------------------------
+// Function: output_results
+// Writes each assembled contig to a file.
+//------------------------------------------------------
+void output_results(const std::list<std::list<kmer_pair>> &contigs, 
+                    const std::string &test_prefix, int rank_id) {
+    std::ofstream fout(test_prefix + "_" + std::to_string(rank_id) + ".dat");
+    for (const auto &contig : contigs) {
+        fout << extract_contig(contig) << std::endl;
+    }
+}
+
+//------------------------------------------------------
+// Main: Executes the k-mer processing pipeline.
+//------------------------------------------------------
 int main(int argc, char **argv) {
     upcxx::init();
 
@@ -95,13 +110,10 @@ int main(int argc, char **argv) {
     int ks, rank_id, world_size;
     size_t n_kmers, hash_table_size;
 
-    // Initialize UPC++ environment and parse command-line arguments
-    initialize_upcxx(argc, argv, kmer_fname, run_type, test_prefix, ks, n_kmers, hash_table_size, rank_id, world_size);
+    initialize_upcxx(argc, argv, kmer_fname, run_type, test_prefix, 
+                     ks, n_kmers, hash_table_size, rank_id, world_size);
 
-    // Initialize the Distributed HashMap
-    DistributedHashMap hashmap(hash_table_size, rank_id, world_size);
-
-    // Read the kmers from the file
+    DistributedHashMap<std::string, kmer_pair> hashmap(hash_table_size, rank_id, world_size);
     std::vector<kmer_pair> kmers = read_kmers(kmer_fname, world_size, rank_id);
     std::vector<kmer_pair> start_nodes;
 
@@ -111,26 +123,24 @@ int main(int argc, char **argv) {
     }
 
     upcxx::barrier();
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start_time = std::chrono::high_resolution_clock::now();
 
-    // Initialize kmers into the Distributed HashMap
     initialize_kmers(hashmap, kmers, start_nodes);
     upcxx::barrier();
     auto insert_time = std::chrono::high_resolution_clock::now();
 
-    // Assemble contigs from the start nodes
     auto contigs = assemble_contigs(hashmap, start_nodes);
     upcxx::barrier();
     auto end_time = std::chrono::high_resolution_clock::now();
 
-    // Output results based on run type
+    // Reporting results
     if (run_type == "test") {
         output_results(contigs, test_prefix, rank_id);
-    }
-
-    if (run_type != "test") {
-        BUtil::print("Finished inserting in %lf sec\n", std::chrono::duration<double>(insert_time - start).count());
-        BUtil::print("Assembled in %lf sec\n", std::chrono::duration<double>(end_time - start).count());
+    } else {
+        BUtil::print("Finished inserting in %lf sec\n", 
+                     std::chrono::duration<double>(insert_time - start_time).count());
+        BUtil::print("Assembled in %lf sec\n", 
+                     std::chrono::duration<double>(end_time - start_time).count());
     }
 
     upcxx::finalize();

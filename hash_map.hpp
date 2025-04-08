@@ -1,43 +1,56 @@
 #pragma once
 #include <unordered_map>
-#include <string>
 #include <vector>
 #include <upcxx/upcxx.hpp>
-#include "kmer_t.hpp"
 
+//======================================================
+// Class: DistributedHashMap
+// Implements a **generic distributed hash table** that can store and retrieve 
+// any key-value pair across UPC++ distributed memory.
+//======================================================
+template<typename Key, typename Value>
 class DistributedHashMap {
 private:
-    using dobj_map_t = upcxx::dist_object<std::unordered_map<std::string, kmer_pair>>;
-    dobj_map_t local_map;
+    using dist_map_t = upcxx::dist_object<std::unordered_map<Key, Value>>;
+    dist_map_t local_map;
 
-    // Local cache for frequently accessed k-mers
-    std::unordered_map<std::string, kmer_pair> local_cache;
+    // Local cache for frequently accessed data
+    std::unordered_map<Key, Value> local_cache;
 
-    size_t table_size_;
-    int rank_id_;
-    int world_size_;
+    size_t table_size_;  // Logical hash table size (maintained for interface consistency)
+    int rank_id_;        // Current UPC++ rank identifier
+    int world_size_;     // Total number of UPC++ ranks in execution
 
-    int get_target_rank(const std::string &key) const {
-        return std::hash<std::string>{}(key) % world_size_;
+    //======================================================
+    // Function: get_target_rank
+    // Hash function to determine which rank stores a given key.
+    //======================================================
+    int get_target_rank(const Key &key) const {
+        return std::hash<Key>{}(key) % world_size_;
     }
 
 public:
+    //======================================================
+    // Constructor: DistributedHashMap
+    // Initializes the distributed hash table.
+    //======================================================
     DistributedHashMap(size_t table_size, int rank_id, int world_size)
         : table_size_(table_size), rank_id_(rank_id), world_size_(world_size), local_map({}) {}
 
-    // **Batch Insert Operation**
-    upcxx::future<> batch_insert(const std::vector<std::pair<std::string, kmer_pair>> &entries) {
-        std::unordered_map<int, std::vector<std::pair<std::string, kmer_pair>>> grouped_inserts;
+    //======================================================
+    // Function: batch_insert
+    // Efficiently inserts multiple key-value pairs into the distributed hash table.
+    //======================================================
+    upcxx::future<> batch_insert(const std::vector<std::pair<Key, Value>> &entries) {
+        std::unordered_map<int, std::vector<std::pair<Key, Value>>> grouped_inserts;
 
-        // **Step 1: Group entries by target rank**
         for (const auto &entry : entries) {
             grouped_inserts[get_target_rank(entry.first)].push_back(entry);
-            local_cache[entry.first] = entry.second;  // Cache newly inserted k-mers
+            local_cache[entry.first] = entry.second;  // Cache inserted entries locally
         }
 
         std::vector<upcxx::future<>> rpc_futures;
 
-        // **Step 2: Perform insertions**
         for (const auto &[target_rank, batch] : grouped_inserts) {
             if (target_rank == rank_id_) {
                 for (const auto &kv : batch) {
@@ -45,7 +58,7 @@ public:
                 }
             } else {
                 rpc_futures.push_back(upcxx::rpc(target_rank,
-                    [](dobj_map_t &lmap, const std::vector<std::pair<std::string, kmer_pair>> &batch) {
+                    [](dist_map_t &lmap, const std::vector<std::pair<Key, Value>> &batch) {
                         for (const auto &kv : batch) {
                             lmap->insert({kv.first, kv.second});
                         }
@@ -64,14 +77,20 @@ public:
         return upcxx::make_future();
     }
 
-    // **Updated Insert Function to Use Batch Insert**
-    void insert(const std::string &key, const kmer_pair &value) {
+    //======================================================
+    // Function: insert
+    // Wrapper for batch insertion of a single key-value pair.
+    //======================================================
+    void insert(const Key &key, const Value &value) {
         batch_insert({{key, value}}).wait();
     }
 
-    // **Optimized Lookup Using Local Cache**
-    bool find(const std::string &key, kmer_pair &result) {
-        // **Step 1: Check Local Cache First**
+    //======================================================
+    // Function: find
+    // Retrieves a value from the distributed hash table using a key.
+    // Returns true if the value was found, false otherwise.
+    //======================================================
+    bool find(const Key &key, Value &result) {
         auto cache_it = local_cache.find(key);
         if (cache_it != local_cache.end()) {
             result = cache_it->second;
@@ -85,24 +104,28 @@ public:
                 return false;
             }
             result = it->second;
-            local_cache[key] = result;  // Cache retrieved value
+            local_cache[key] = result;  // Cache locally
             return true;
         } else {
-            kmer_pair found_kmer = upcxx::rpc(target_rank,
-                [](dobj_map_t &lmap, const std::string &key) -> kmer_pair {
+            Value found_value = upcxx::rpc(target_rank,
+                [](dist_map_t &lmap, const Key &key) -> Value {
                     auto it = lmap->find(key);
-                    return (it != lmap->end()) ? it->second : kmer_pair();
+                    return (it != lmap->end()) ? it->second : Value{};
                 }, local_map, key).wait();
 
-            if (!found_kmer.kmer_str().empty()) {
-                result = found_kmer;
-                local_cache[key] = result;  // Cache remote lookup result
+            if (!(found_value == Value{})) {
+                result = found_value;
+                local_cache[key] = result;  // Cache remotely retrieved value
                 return true;
             }
             return false;
         }
     }
 
+    //======================================================
+    // Function: process_requests
+    // Executes pending UPC++ asynchronous operations.
+    //======================================================
     void process_requests() {
         upcxx::progress(upcxx::progress_level::user);
     }
