@@ -50,6 +50,7 @@ void initialize_upcxx(int argc, char **argv,
 // Function: initialize_kmers
 // Inserts k-mers into the distributed hash map and records "start nodes."
 //------------------------------------------------------
+/*
 void initialize_kmers(DistributedHashMap<std::string, kmer_pair> &hashmap, 
                       const std::vector<kmer_pair> &kmers, 
                       std::vector<kmer_pair> &start_nodes) {
@@ -59,6 +60,22 @@ void initialize_kmers(DistributedHashMap<std::string, kmer_pair> &hashmap,
             start_nodes.push_back(kmer);
         }
     }
+    hashmap.process_requests();
+}
+*/
+void initialize_kmers(DistributedHashMap<std::string, kmer_pair> &hashmap, 
+    const std::vector<kmer_pair> &kmers, std::vector<kmer_pair> &start_nodes) {
+    std::vector<std::pair<std::string, kmer_pair>> batched_kmers; // Collect k-mers in a batch
+
+    for (const auto &kmer : kmers) {
+        batched_kmers.emplace_back(kmer.kmer_str(), kmer);
+        if (kmer.backwardExt() == 'F') {
+            start_nodes.push_back(kmer);
+        }
+    }
+
+    // Use batch_insert to insert all k-mers efficiently
+    hashmap.batch_insert(batched_kmers).wait();
     hashmap.process_requests();
 }
 
