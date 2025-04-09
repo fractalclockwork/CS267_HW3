@@ -5,52 +5,47 @@
 
 //======================================================
 // Class: DistributedHashMap
-// Implements a **generic distributed hash table** that can store and retrieve 
-// any key-value pair across UPC++ distributed memory.
+// Implements a **generic distributed hash table** with dynamic batching and caching.
+// This data structure is application agnostic.
 //======================================================
 template<typename Key, typename Value>
 class DistributedHashMap {
 private:
     using dist_map_t = upcxx::dist_object<std::unordered_map<Key, Value>>;
     dist_map_t local_map;
-
-    // Local cache for frequently accessed data
     std::unordered_map<Key, Value> local_cache;
+    size_t table_size_;
+    int rank_id_;
+    int world_size_;
 
-    size_t table_size_;  // Logical hash table size (maintained for interface consistency)
-    int rank_id_;        // Current UPC++ rank identifier
-    int world_size_;     // Total number of UPC++ ranks in execution
-
-    //======================================================
+    //------------------------------------------------------
     // Function: get_target_rank
-    // Hash function to determine which rank stores a given key.
-    //======================================================
+    // Determines which rank is responsible for the given key.
+    //------------------------------------------------------
     int get_target_rank(const Key &key) const {
         return std::hash<Key>{}(key) % world_size_;
     }
 
 public:
-    //======================================================
+    //------------------------------------------------------
     // Constructor: DistributedHashMap
     // Initializes the distributed hash table.
-    //======================================================
+    //------------------------------------------------------
     DistributedHashMap(size_t table_size, int rank_id, int world_size)
         : table_size_(table_size), rank_id_(rank_id), world_size_(world_size), local_map({}) {}
 
-    //======================================================
+    //------------------------------------------------------
     // Function: batch_insert
-    // Efficiently inserts multiple key-value pairs into the distributed hash table.
-    //======================================================
+    // Groups key-value pairs per rank and asynchronously inserts them.
+    //------------------------------------------------------
     upcxx::future<> batch_insert(const std::vector<std::pair<Key, Value>> &entries) {
         std::unordered_map<int, std::vector<std::pair<Key, Value>>> grouped_inserts;
-
         for (const auto &entry : entries) {
             grouped_inserts[get_target_rank(entry.first)].push_back(entry);
-            local_cache[entry.first] = entry.second;  // Cache inserted entries locally
+            local_cache[entry.first] = entry.second;
         }
 
         std::vector<upcxx::future<>> rpc_futures;
-
         for (const auto &[target_rank, batch] : grouped_inserts) {
             if (target_rank == rank_id_) {
                 for (const auto &kv : batch) {
@@ -69,27 +64,23 @@ public:
         if (rpc_futures.empty()) {
             return upcxx::make_future();
         }
-
-        for (auto &future : rpc_futures) {
-            future.wait();
-        }
-
-        return upcxx::make_future();
+        // Use when_all to aggregate all remote RPC futures,
+        // then return a future that indicates completion.
+        return upcxx::when_all(rpc_futures).then([](auto) { return upcxx::make_future(); });
     }
 
-    //======================================================
+    //------------------------------------------------------
     // Function: insert
-    // Wrapper for batch insertion of a single key-value pair.
-    //======================================================
+    // Convenience method to insert a single key-value pair.
+    //------------------------------------------------------
     void insert(const Key &key, const Value &value) {
         batch_insert({{key, value}}).wait();
     }
 
-    //======================================================
+    //------------------------------------------------------
     // Function: find
-    // Retrieves a value from the distributed hash table using a key.
-    // Returns true if the value was found, false otherwise.
-    //======================================================
+    // Retrieves a value given a key, using local cache when possible.
+    //------------------------------------------------------
     bool find(const Key &key, Value &result) {
         auto cache_it = local_cache.find(key);
         if (cache_it != local_cache.end()) {
@@ -100,11 +91,10 @@ public:
         int target_rank = get_target_rank(key);
         if (target_rank == rank_id_) {
             auto it = local_map->find(key);
-            if (it == local_map->end()) {
+            if (it == local_map->end())
                 return false;
-            }
             result = it->second;
-            local_cache[key] = result;  // Cache locally
+            local_cache[key] = result;
             return true;
         } else {
             Value found_value = upcxx::rpc(target_rank,
@@ -115,17 +105,17 @@ public:
 
             if (!(found_value == Value{})) {
                 result = found_value;
-                local_cache[key] = result;  // Cache remotely retrieved value
+                local_cache[key] = result;
                 return true;
             }
             return false;
         }
     }
 
-    //======================================================
+    //------------------------------------------------------
     // Function: process_requests
-    // Executes pending UPC++ asynchronous operations.
-    //======================================================
+    // Advances progress on pending asynchronous UPC++ operations.
+    //------------------------------------------------------
     void process_requests() {
         upcxx::progress(upcxx::progress_level::user);
     }
