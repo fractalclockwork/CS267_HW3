@@ -1,175 +1,105 @@
 #include <upcxx/upcxx.hpp>
 #include <iostream>
 #include <unordered_map>
-#include <vector>
 #include <string>
 
-//======================================================
-// DistributedHash: Low-level distributed hash table
-//======================================================
-template<typename Key, typename Value>
-class DistributedHash {
-public:
-    using HashTable = std::unordered_map<Key, Value>;
-    using DistMap = upcxx::dist_object<HashTable>;
-
+//--------------------------------------------------------
+// Generic Distributed Hash Map using UPC++ PGAS Model
+//--------------------------------------------------------
+template<typename Key, typename Value, typename Hash = std::hash<Key>>
+class DistributedHashMap {
 private:
-    DistMap local_data;
-    int rank_id_;
-    int world_size_;
+    // Local hash table stored on each rank.
+    using LocalMap = std::unordered_map<Key, Value, Hash>;
+    upcxx::dist_object<LocalMap> local_data;
+
+    // Store rank and world size for steering.
+    const int rank;
+    const int world_size;
+
+    // Compute the target rank for a key.
+    int get_target_rank(const Key& key) const {
+        return Hash{}(key) % world_size;
+    }
 
 public:
-    DistributedHash(int rank_id, int world_size)
-        : rank_id_(rank_id), world_size_(world_size), local_data(HashTable{}) {}
+    // Default constructor initializes rank and world size automatically.
+    DistributedHashMap()
+        : rank(upcxx::rank_me()),
+          world_size(upcxx::rank_n()),
+          local_data(LocalMap{}) {}
 
-    // Insert key/value pair (local or remote)
-    void insert(const Key& key, const Value& value) {
+    // Asynchronous put operation (fire-and-forget)
+    void put(const Key& key, const Value& value) {
         int target = get_target_rank(key);
-        if (target == rank_id_) {
-            local_data->emplace(key, value);
+        if (target == rank) {
+            local_data->insert_or_assign(key, value);
         } else {
             upcxx::rpc_ff(target,
-                [](upcxx::dist_object<HashTable>& dobj, const Key& key, const Value& value) {
-                    dobj->emplace(key, value);
+                // Remote lambda: insert or update the key/value pair.
+                [](upcxx::dist_object<LocalMap>& remote_data,
+                   const Key& key, const Value& value) {
+                    remote_data->insert_or_assign(key, value);
                 },
                 local_data, key, value);
         }
     }
 
-    // Lookup operation
-    upcxx::future<Value> find(const Key& key) {
+    // Asynchronous get operation: returns a future holding the Value.
+    upcxx::future<Value> get(const Key& key) const {
         int target = get_target_rank(key);
-        if (target == rank_id_) {
+        if (target == rank) {
             auto it = local_data->find(key);
-            return upcxx::make_future(it != local_data->end() ? it->second : Value{});
+            if (it != local_data->end())
+                return upcxx::make_future(it->second);
+            else
+                return upcxx::make_future(Value{});  // Return default-constructed Value
         } else {
             return upcxx::rpc(target,
-                [](upcxx::dist_object<HashTable>& dobj, const Key& key) -> Value {
-                    auto it = dobj->find(key);
-                    return (it != dobj->end()) ? it->second : Value{};
+                // Remote lambda: lookup key and return result.
+                [](upcxx::dist_object<LocalMap>& remote_data,
+                   const Key& key) -> Value {
+                    auto it = remote_data->find(key);
+                    return (it != remote_data->end()) ? it->second : Value{};
                 },
                 local_data, key);
         }
     }
 
-    // Process pending UPC++ RPCs
-    void process_requests() {
-        upcxx::progress(upcxx::progress_level::user);
-    }
-
-private:
-    int get_target_rank(const Key& key) const {
-        return std::hash<Key>{}(key) % world_size_;
+    // Optionally expose progress to help drive UPC++ communication.
+    inline void progress() { 
+        upcxx::progress(upcxx::progress_level::user); 
     }
 };
 
-//======================================================
-// DistributedHashMap: Higher-level abstraction
-//======================================================
-template<typename Key, typename Value>
-class DistributedHashMap {
-private:
-    upcxx::dist_object<DistributedHash<Key, Value>> d_hash;
-    std::unordered_map<Key, Value> local_cache;
-    int rank_id_;
-    int world_size_;
 
-    int get_target_rank(const Key& key) const {
-        return std::hash<Key>{}(key) % world_size_;
-    }
-
-public:
-    DistributedHashMap(int rank_id, int world_size)
-        : rank_id_(rank_id), world_size_(world_size), d_hash(DistributedHash<Key, Value>(rank_id, world_size)) {}
-
-    // Batch Insert: Efficient grouped insertions using UPC++ futures
-    upcxx::future<> batch_insert(const std::vector<std::pair<Key, Value>>& entries) {
-        std::unordered_map<int, std::vector<std::pair<Key, Value>>> grouped_batches;
-        for (const auto& entry : entries) {
-            grouped_batches[get_target_rank(entry.first)].push_back(entry);
-            local_cache[entry.first] = entry.second; // Local caching
-        }
-
-        std::vector<upcxx::future<>> rpc_futures;
-
-        for (auto& [target, batch] : grouped_batches) {
-            if (target == rank_id_) {
-                for (const auto& kv : batch) {
-                    d_hash->insert(kv.first, kv.second);
-                }
-            } else {
-                rpc_futures.push_back(
-                    upcxx::rpc(target,
-                        [](upcxx::dist_object<DistributedHash<Key, Value>>& remote_hash,
-                           std::vector<std::pair<Key, Value>> batch) {
-                            for (const auto& kv : batch) {
-                                remote_hash->insert(kv.first, kv.second);
-                            }
-                        },
-                        d_hash, std::move(batch)));
-            }
-        }
-
-        if (rpc_futures.empty()) {
-            return upcxx::make_future();
-        } else {
-            return upcxx::when_all(std::move(rpc_futures)).then([](auto) { return upcxx::make_future(); });
-        }
-    }
-
-    // Single Insert Wrapper
-    void insert(const Key& key, const Value& value) {
-        batch_insert({{key, value}}).wait();
-    }
-
-    // Lookup Operation
-    upcxx::future<Value> find(const Key& key) {
-        auto cache_it = local_cache.find(key);
-        if (cache_it != local_cache.end()) {
-            return upcxx::make_future(cache_it->second);
-        }
-        return d_hash->find(key).then([this, key](Value result) {
-            if (!(result == Value{})) {
-                local_cache[key] = result;
-            }
-            return result;
-        });
-    }
-
-    // Process pending UPC++ requests
-    void process_requests() {
-        d_hash->process_requests();
-    }
-};
-
-//======================================================
-// Main: Testing the Optimized DHM
-//======================================================
+//--------------------------------------------------------
+// Testing the Generic Distributed Hash Map
+//--------------------------------------------------------
 int main() {
     upcxx::init();
 
-    int rank = upcxx::rank_me();
-    int world_size = upcxx::rank_n();
+    {
+        // Create a distributed hash map with int keys and std::string values.
+        DistributedHashMap<int, std::string> dhm;
 
-    DistributedHashMap<int, std::string> dhm(rank, world_size);
-
-    // Generate test data (100 key-value pairs)
-    std::vector<std::pair<int, std::string>> entries;
-    for (int i = 0; i < 100; i++) {
-        entries.push_back({i, "Value_" + std::to_string(i)});
-    }
-
-    // Perform batch insertion
-    dhm.batch_insert(entries).wait();
-
-    upcxx::barrier();
-
-    // Lookup and print results on rank 0
-    if (rank == 0) {
-        for (int i = 0; i < 100; i++) {
-            std::string value = dhm.find(i).wait();
-            std::cout << "Key: " << i << " Value: " << value << std::endl;
+        // Insert 100 key/value pairs.
+        for (int i = 0; i < 100; ++i) {
+            dhm.put(i, "Value_" + std::to_string(i));
         }
+
+        // Synchronize to ensure all RPCs have been issued.
+        upcxx::barrier();
+
+        // On rank 0, lookup each key and print the value.
+        if (upcxx::rank_me() == 0) {
+            for (int i = 0; i < 100; ++i) {
+                std::string value = dhm.get(i).wait();
+                std::cout << "Key: " << i << " Value: " << value << std::endl;
+            }
+        }
+
+        upcxx::barrier();
     }
 
     upcxx::finalize();
