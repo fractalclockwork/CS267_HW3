@@ -1,122 +1,102 @@
 #pragma once
-#include <unordered_map>
+
+#include <cstring>          // Needed so that memcmp is available (required by pkmer_t.hpp)
+#include "kmer_t.hpp"
 #include <vector>
-#include <upcxx/upcxx.hpp>
+#include <cstdint>
+#include <stdexcept>
 
-//======================================================
-// Class: DistributedHashMap
-// Implements a **generic distributed hash table** with dynamic batching and caching.
-// This data structure is application agnostic.
-//======================================================
-template<typename Key, typename Value>
-class DistributedHashMap {
-private:
-    using dist_map_t = upcxx::dist_object<std::unordered_map<Key, Value>>;
-    dist_map_t local_map;
-    std::unordered_map<Key, Value> local_cache;
-    size_t table_size_;
-    int rank_id_;
-    int world_size_;
+//------------------------------------------------------------------------------
+// HashMap
+// This is the serial hash map implementation.
+// It preserves the functionality of the original starter code and has 
+// been reorganized for clarity in preparation for the DHM implementation.
+//------------------------------------------------------------------------------
+struct HashMap {
+    size_t table_size;             // Global number of slots
+    std::vector<kmer_pair> data;   // Storage for kmer_pair values
+    std::vector<int> used;         // Occupancy flags (0 = free, 1 = used)
 
-    //------------------------------------------------------
-    // Function: get_target_rank
-    // Determines which rank is responsible for the given key.
-    //------------------------------------------------------
-    int get_target_rank(const Key &key) const {
-        return std::hash<Key>{}(key) % world_size_;
-    }
+    explicit HashMap(size_t size);
 
-public:
-    //------------------------------------------------------
-    // Constructor: DistributedHashMap
-    // Initializes the distributed hash table.
-    //------------------------------------------------------
-    DistributedHashMap(size_t table_size, int rank_id, int world_size)
-        : table_size_(table_size), rank_id_(rank_id), world_size_(world_size), local_map({}) {}
+    size_t size() const noexcept;
 
-    //------------------------------------------------------
-    // Function: batch_insert
-    // Groups key-value pairs per rank and asynchronously inserts them.
-    //------------------------------------------------------
-    upcxx::future<> batch_insert(const std::vector<std::pair<Key, Value>> &entries) {
-        std::unordered_map<int, std::vector<std::pair<Key, Value>>> grouped_inserts;
-        for (const auto &entry : entries) {
-            grouped_inserts[get_target_rank(entry.first)].push_back(entry);
-            local_cache[entry.first] = entry.second;
-        }
+    // Inserts a kmer_pair into the table.
+    // Returns true if insertion succeeded (false if full).
+    bool insert(const kmer_pair &kmer);
 
-        std::vector<upcxx::future<>> rpc_futures;
-        for (const auto &[target_rank, batch] : grouped_inserts) {
-            if (target_rank == rank_id_) {
-                for (const auto &kv : batch) {
-                    local_map->insert({kv.first, kv.second});
-                }
-            } else {
-                rpc_futures.push_back(upcxx::rpc(target_rank,
-                    [](dist_map_t &lmap, const std::vector<std::pair<Key, Value>> &batch) {
-                        for (const auto &kv : batch) {
-                            lmap->insert({kv.first, kv.second});
-                        }
-                    }, local_map, batch));
-            }
-        }
+    // Searches for a key (of type pkmer_t) in the table.
+    // If found, sets val_kmer and returns true.
+    bool find(const pkmer_t &key_kmer, kmer_pair &val_kmer);
 
-        if (rpc_futures.empty()) {
-            return upcxx::make_future();
-        }
-        // Use when_all to aggregate all remote RPC futures,
-        // then return a future that indicates completion.
-        return upcxx::when_all(rpc_futures).then([](auto) { return upcxx::make_future(); });
-    }
+    // Writes a kmer_pair value into a given slot.
+    void write_slot(uint64_t slot, const kmer_pair &kmer);
 
-    //------------------------------------------------------
-    // Function: insert
-    // Convenience method to insert a single key-value pair.
-    //------------------------------------------------------
-    void insert(const Key &key, const Value &value) {
-        batch_insert({{key, value}}).wait();
-    }
+    // Reads and returns the kmer_pair from a given slot.
+    kmer_pair read_slot(uint64_t slot);
 
-    //------------------------------------------------------
-    // Function: find
-    // Retrieves a value given a key, using local cache when possible.
-    //------------------------------------------------------
-    bool find(const Key &key, Value &result) {
-        auto cache_it = local_cache.find(key);
-        if (cache_it != local_cache.end()) {
-            result = cache_it->second;
+    // Attempts to mark a slot as used; returns true if the slot was free.
+    bool request_slot(uint64_t slot);
+
+    // Returns true if the slot is marked as used.
+    bool slot_used(uint64_t slot);
+};
+
+//------------------------------------------------------------------------------
+// Method Definitions
+//------------------------------------------------------------------------------
+
+HashMap::HashMap(size_t size)
+    : table_size(size), data(size), used(size, 0) {}
+
+size_t HashMap::size() const noexcept {
+    return table_size;
+}
+
+bool HashMap::insert(const kmer_pair &kmer) {
+    uint64_t hash_val = kmer.hash();
+    uint64_t probe = 0;
+    while (probe < size()) {
+        uint64_t slot = (hash_val + probe++) % size();
+        if (request_slot(slot)) {
+            write_slot(slot, kmer);
             return true;
         }
+    }
+    return false;  // Table is full.
+}
 
-        int target_rank = get_target_rank(key);
-        if (target_rank == rank_id_) {
-            auto it = local_map->find(key);
-            if (it == local_map->end())
-                return false;
-            result = it->second;
-            local_cache[key] = result;
-            return true;
-        } else {
-            Value found_value = upcxx::rpc(target_rank,
-                [](dist_map_t &lmap, const Key &key) -> Value {
-                    auto it = lmap->find(key);
-                    return (it != lmap->end()) ? it->second : Value{};
-                }, local_map, key).wait();
-
-            if (!(found_value == Value{})) {
-                result = found_value;
-                local_cache[key] = result;
+bool HashMap::find(const pkmer_t &key_kmer, kmer_pair &val_kmer) {
+    uint64_t hash_val = key_kmer.hash();
+    uint64_t probe = 0;
+    while (probe < size()) {
+        uint64_t slot = (hash_val + probe++) % size();
+        if (slot_used(slot)) {
+            kmer_pair candidate = read_slot(slot);
+            if (candidate.kmer == key_kmer) {
+                val_kmer = candidate;
                 return true;
             }
-            return false;
         }
     }
+    return false;  // Not found.
+}
 
-    //------------------------------------------------------
-    // Function: process_requests
-    // Advances progress on pending asynchronous UPC++ operations.
-    //------------------------------------------------------
-    void process_requests() {
-        upcxx::progress(upcxx::progress_level::user);
-    }
-};
+void HashMap::write_slot(uint64_t slot, const kmer_pair &kmer) {
+    data[slot] = kmer;
+}
+
+kmer_pair HashMap::read_slot(uint64_t slot) {
+    return data[slot];
+}
+
+bool HashMap::request_slot(uint64_t slot) {
+    if (used[slot] != 0)
+        return false;
+    used[slot] = 1;
+    return true;
+}
+
+bool HashMap::slot_used(uint64_t slot) {
+    return used[slot] != 0;
+}
