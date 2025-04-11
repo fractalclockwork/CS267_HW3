@@ -1,101 +1,55 @@
 #pragma once
 
-#include <cstring>          // For memcmp()
 #include "kmer_t.hpp"
-#include <vector>
-#include <cstdint>
-#include <stdexcept>
+#include <upcxx/upcxx.hpp>
 
-//------------------------------------------------------------------------------
-// HashMap
-// A serial hash map implementation that stores kmer_pair values.
-struct HashMap {
-    size_t table_size;               // Total number of slots.
-    std::vector<kmer_pair> data;     // Storage for kmer_pair values.
-    std::vector<int> used;           // Occupancy flags (0 = free, 1 = used)
+class HashMap {
+public:
+    upcxx::global_ptr<kmer_pair> global_data;
+    upcxx::global_ptr<int> global_used;
+    upcxx::atomic_domain<int> atomic_used;
+    size_t my_size;
 
-    explicit HashMap(size_t size);
+    HashMap(size_t size);
 
-    size_t size() const noexcept;
-
-    // Inserts a kmer_pair into the table.
-    // Returns true if insertion succeeded, false otherwise.
-    bool insert(const kmer_pair &kmer);
-
-    // Searches for a k-mer (key) in the table.
-    // On success, sets val_kmer and returns true.
-    bool find(const pkmer_t &key, kmer_pair &val_kmer) const;
-
-    // Writes the kmer_pair into the given slot.
-    void write_slot(uint64_t slot, const kmer_pair &kmer);
-
-    // Reads and returns the kmer_pair from the given slot.
-    kmer_pair read_slot(uint64_t slot) const;
-
-    // Attempts to claim a slot; returns true on success.
+    bool insert(const kmer_pair& kmer);
+    bool find(const pkmer_t& key_kmer, kmer_pair& val_kmer);
     bool request_slot(uint64_t slot);
-
-    // Returns true if the specified slot is already used.
-    bool slot_used(uint64_t slot) const;
+    bool slot_used(uint64_t slot);
 };
 
-//------------------------------------------------------------------------------
-// Method definitions
-//------------------------------------------------------------------------------
-
 HashMap::HashMap(size_t size)
-    : table_size(size), data(size), used(size, 0) {}
-
-size_t HashMap::size() const noexcept {
-    return table_size;
-}
-
-void HashMap::write_slot(uint64_t slot, const kmer_pair &kmer) {
-    data[slot] = kmer;
-}
-
-// Marked const.
-kmer_pair HashMap::read_slot(uint64_t slot) const {
-    return data[slot];
+    : atomic_used({upcxx::atomic_op::compare_exchange}) {
+    my_size = size / upcxx::rank_n();
+    global_data = upcxx::new_array<kmer_pair>(my_size);
+    global_used = upcxx::new_array<int>(my_size);
 }
 
 bool HashMap::request_slot(uint64_t slot) {
-    if (used[slot] != 0)
-        return false;
-    used[slot] = 1;
-    return true;
+    int expected = 0;
+    int desired = 1;
+    return atomic_used.compare_exchange(global_used + slot, expected, desired, std::memory_order_relaxed).wait() == expected;
 }
 
-// Marked const.
-bool HashMap::slot_used(uint64_t slot) const {
-    return used[slot] != 0;
+bool HashMap::insert(const kmer_pair& kmer) {
+    uint64_t hash = kmer.hash();
+    int target_rank = hash % upcxx::rank_n();
+    uint64_t local_slot = hash % my_size;
+
+    return upcxx::rpc(target_rank, [this](uint64_t slot_index, kmer_pair km) {
+        upcxx::rput(km, global_data + slot_index).wait();
+        return true;
+    }, local_slot, kmer).wait();
 }
 
-bool HashMap::insert(const kmer_pair &kmer) {
-    uint64_t hash_val = kmer.hash();
-    uint64_t probe = 0;
-    while (probe < size()) {
-        uint64_t slot = (hash_val + probe++) % size();
-        if (request_slot(slot)) {
-            write_slot(slot, kmer);
-            return true;
-        }
-    }
-    return false;  // Table is full.
-}
+bool HashMap::find(const pkmer_t& key_kmer, kmer_pair& val_kmer) {
+    uint64_t hash = key_kmer.hash();
+    int target_rank = hash % upcxx::rank_n();
+    uint64_t local_slot = hash % my_size;
 
-bool HashMap::find(const pkmer_t &key, kmer_pair &val_kmer) const {
-    uint64_t hash_val = key.hash();
-    uint64_t probe = 0;
-    while (probe < size()) {
-        uint64_t slot = (hash_val + probe++) % size();
-        if (slot_used(slot)) {
-            kmer_pair candidate = read_slot(slot);
-            if (candidate.kmer == key) {  // Assumes operator== (using memcmp) is correctly defined.
-                val_kmer = candidate;
-                return true;
-            }
-        }
-    }
-    return false;  // Not found.
+    val_kmer = upcxx::rpc(target_rank, [this](uint64_t slot_index) {
+        return upcxx::rget(global_data + slot_index).wait();
+    }, local_slot).wait();
+
+    return (val_kmer.kmer == key_kmer);
 }
