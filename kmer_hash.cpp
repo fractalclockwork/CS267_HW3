@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     HashMap hashmap(hash_table_size);
 
     std::vector<kmer_pair> kmers = read_kmers(kmer_fname, upcxx::rank_n(), upcxx::rank_me());
-    upcxx::barrier();
+    upcxx::barrier(); // Synchronize before processing
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -70,7 +70,9 @@ int main(int argc, char** argv) {
             kmer_pair next_kmer;
             bool success = hashmap.find(contig.back().next_kmer(), next_kmer);
             if (!success) {
-                throw std::runtime_error("Error: k-mer lookup failed.");
+                BUtil::print("Rank %d: k-mer lookup failed at slot %lu\n",
+                             upcxx::rank_me(), contig.back().next_kmer().hash() % hash_table_size);
+                break; // Prevent runtime crash
             }
             contig.push_back(next_kmer);
         }

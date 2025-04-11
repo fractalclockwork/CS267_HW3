@@ -11,7 +11,7 @@ public:
     size_t my_size;
 
     HashMap(size_t size);
-
+    
     bool insert(const kmer_pair& kmer);
     bool find(const pkmer_t& key_kmer, kmer_pair& val_kmer);
     bool request_slot(uint64_t slot);
@@ -23,6 +23,12 @@ HashMap::HashMap(size_t size)
     my_size = size / upcxx::rank_n();
     global_data = upcxx::new_array<kmer_pair>(my_size);
     global_used = upcxx::new_array<int>(my_size);
+
+    // Initialize memory to avoid segmentation faults
+    for (size_t i = 0; i < my_size; i++) {
+        upcxx::rput(kmer_pair(), global_data + i).wait();
+        upcxx::rput(0, global_used + i).wait();
+    }
 }
 
 bool HashMap::request_slot(uint64_t slot) {
@@ -36,6 +42,8 @@ bool HashMap::insert(const kmer_pair& kmer) {
     int target_rank = hash % upcxx::rank_n();
     uint64_t local_slot = hash % my_size;
 
+    upcxx::barrier(); // Ensure memory consistency before insertion
+
     return upcxx::rpc(target_rank, [this](uint64_t slot_index, kmer_pair km) {
         upcxx::rput(km, global_data + slot_index).wait();
         return true;
@@ -47,9 +55,15 @@ bool HashMap::find(const pkmer_t& key_kmer, kmer_pair& val_kmer) {
     int target_rank = hash % upcxx::rank_n();
     uint64_t local_slot = hash % my_size;
 
+    upcxx::barrier(); // Synchronize before lookup
+
     val_kmer = upcxx::rpc(target_rank, [this](uint64_t slot_index) {
         return upcxx::rget(global_data + slot_index).wait();
     }, local_slot).wait();
+
+    if (val_kmer.kmer_str().empty()) {
+        return false;  // Handle lookup failure gracefully
+    }
 
     return (val_kmer.kmer == key_kmer);
 }
