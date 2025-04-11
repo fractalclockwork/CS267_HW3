@@ -12,7 +12,7 @@
 #include "read_kmers.hpp"
 #include "butil.hpp"
 
-// Function to initialize k-mers into the Distributed HashMap
+// Initialize k-mers in Distributed HashMap
 void initialize_kmers(DistributedHashMap &hashmap, const std::vector<kmer_pair> &kmers, 
                       std::vector<kmer_pair> &start_nodes) {
     for (const auto &kmer : kmers) {
@@ -24,7 +24,7 @@ void initialize_kmers(DistributedHashMap &hashmap, const std::vector<kmer_pair> 
     upcxx::barrier();
 }
 
-// Function to assemble contigs from the start nodes using the Distributed HashMap
+// Assemble contigs from start nodes using Distributed HashMap
 std::list<std::list<kmer_pair>> assemble_contigs(DistributedHashMap &hashmap, 
                                                  const std::vector<kmer_pair> &start_nodes) {
     std::list<std::list<kmer_pair>> contigs;
@@ -47,70 +47,58 @@ std::list<std::list<kmer_pair>> assemble_contigs(DistributedHashMap &hashmap,
     return contigs;
 }
 
-// Function to output assembled contigs
-void output_results(const std::list<std::list<kmer_pair>> &contigs, 
-                    const std::string &test_prefix, int rank_id) {
+// Output results with metrics
+void output_results(const std::list<std::list<kmer_pair>> &contigs, const std::string &test_prefix, 
+                    int rank_id, double insert_time, double read_time, double total_time) {
     std::ofstream fout(test_prefix + "_" + std::to_string(rank_id) + ".dat");
     for (const auto &contig : contigs) {
         fout << extract_contig(contig) << std::endl;
     }
-}
 
-// Function to initialize UPC++ and parse command-line arguments
-void initialize_upcxx(int argc, char **argv, std::string &kmer_fname, std::string &run_type, 
-                      std::string &test_prefix, int &ks, size_t &n_kmers, 
-                      size_t &hash_table_size, int &rank_id, int &world_size) {
-    if (argc < 2) {
-        BUtil::print("Usage: srun -N nodes -n ranks ./kmer_hash kmer_file [verbose|test [prefix]]\n");
-        upcxx::finalize();
-        exit(1);
-    }
-
-    kmer_fname = argv[1];
-    run_type = (argc >= 3) ? argv[2] : "";
-    test_prefix = (run_type == "test" && argc >= 4) ? argv[3] : "test";
-
-    ks = kmer_size(kmer_fname);
-    if (ks != KMER_LEN) {
-        throw std::runtime_error("Error: " + kmer_fname + " contains " + std::to_string(ks) +
-                                 "-mers, while this binary is compiled for " +
-                                 std::to_string(KMER_LEN) + "-mers.");
-    }
-
-    n_kmers = line_count(kmer_fname);
-    hash_table_size = n_kmers * 2;
-    rank_id = upcxx::rank_me();
-    world_size = upcxx::rank_n();
+    BUtil::print("Rank %d reconstructed %d contigs with %d nodes."
+                 " (%lf read, %lf insert, %lf total)\n",
+                 rank_id, contigs.size(), std::accumulate(contigs.begin(), contigs.end(), 0, 
+                 [](int sum, const std::list<kmer_pair> &contig) { return sum + contig.size(); }),
+                 read_time, insert_time, total_time);
 }
 
 // Main function
 int main(int argc, char **argv) {
     upcxx::init();
 
-    std::string kmer_fname, run_type, test_prefix;
-    int ks, rank_id, world_size;
-    size_t n_kmers, hash_table_size;
+    int rank_id = upcxx::rank_me();
+    int world_size = upcxx::rank_n();
+    std::string kmer_fname = argv[1];
+    std::string run_type = (argc >= 3) ? argv[2] : "";
+    std::string test_prefix = (argc >= 4 && run_type == "test") ? argv[3] : "test";
 
-    initialize_upcxx(argc, argv, kmer_fname, run_type, test_prefix, ks, n_kmers, hash_table_size, rank_id, world_size);
-
+    size_t hash_table_size = line_count(kmer_fname) * 2;
     DistributedHashMap hashmap(hash_table_size, rank_id, world_size);
     std::vector<kmer_pair> kmers = read_kmers(kmer_fname, world_size, rank_id);
     std::vector<kmer_pair> start_nodes;
 
-    upcxx::barrier();
-    auto start_time = std::chrono::high_resolution_clock::now();
+    if (run_type == "verbose") {
+        BUtil::print("Initializing hash table of size %lu for %lu kmers.\n", hash_table_size, kmers.size());
+        BUtil::print("Finished reading kmers.\n");
+    }
 
+    auto start_time = std::chrono::high_resolution_clock::now();
     initialize_kmers(hashmap, kmers, start_nodes);
     auto insert_time = std::chrono::high_resolution_clock::now();
 
     auto contigs = assemble_contigs(hashmap, start_nodes);
-    upcxx::barrier();
     auto end_time = std::chrono::high_resolution_clock::now();
 
-    if (run_type == "test") {
-        output_results(contigs, test_prefix, rank_id);
+    double insert_duration = std::chrono::duration<double>(insert_time - start_time).count();
+    double read_duration = std::chrono::duration<double>(end_time - insert_time).count();
+    double total_duration = std::chrono::duration<double>(end_time - start_time).count();
+
+    if (run_type != "test") {
+        BUtil::print("Finished inserting in %lf sec\n", insert_duration);
+        BUtil::print("Assembled in %lf total\n", total_duration);
     }
 
+    output_results(contigs, test_prefix, rank_id, insert_duration, read_duration, total_duration);
     upcxx::finalize();
     return 0;
 }

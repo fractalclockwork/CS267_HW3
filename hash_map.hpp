@@ -13,7 +13,7 @@ private:
     int rank_id_;
     int world_size_;
 
-    // Compute the target rank for a given key based on a distributed hashing scheme
+    // Compute the target rank for a given key
     int get_target_rank(const std::string &key) const {
         return std::hash<std::string>{}(key) % world_size_;
     }
@@ -23,7 +23,7 @@ private:
         (*local_map)[key] = value;
     }
 
-    // Perform remote insertion using UPC++ RPC
+    // Perform remote insertion via UPC++ RPC
     void insert_remotely(int target_rank, const std::string &key, const kmer_pair &value) {
         upcxx::rpc(target_rank,
             [](upcxx::dist_object<std::unordered_map<std::string, kmer_pair>> &lmap, 
@@ -41,7 +41,7 @@ private:
         return true;
     }
 
-    // Perform remote find operation using UPC++ RPC
+    // Perform remote find operation via UPC++ RPC
     bool find_remotely(int target_rank, const std::string &key, kmer_pair &result) {
         auto future_result = upcxx::rpc(target_rank,
             [](upcxx::dist_object<std::unordered_map<std::string, kmer_pair>> &lmap, 
