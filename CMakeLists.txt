@@ -28,3 +28,4 @@ target_compile_definitions(kmer_hash_51 PRIVATE "KMER_LEN=51")
 # Copy the job scripts
 configure_file(job-perlmutter-starter job-perlmutter-starter COPYONLY)
 configure_file(check_it.sh check_it.sh COPYONLY)
+configure_file(work_it.sh work_it.sh COPYONLY)
