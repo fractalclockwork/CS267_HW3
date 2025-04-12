@@ -26,6 +26,18 @@ target_link_libraries(kmer_hash_51 PRIVATE UPCXX::upcxx)
 target_compile_definitions(kmer_hash_51 PRIVATE "KMER_LEN=51")
 
 # Copy the job scripts
-configure_file(job-perlmutter-starter job-perlmutter-starter COPYONLY)
-configure_file(check_it.sh check_it.sh COPYONLY)
-configure_file(work_it.sh work_it.sh COPYONLY)
+#configure_file(job-perlmutter-starter job-perlmutter-starter COPYONLY)
+#configure_file(check_it.sh check_it.sh COPYONLY)
+#configure_file(work_it.sh work_it.sh COPYONLY)
+
+# Glob Copy the job scripts
+file(GLOB SH_FILES "${CMAKE_SOURCE_DIR}/scripts/*.sh")
+file(GLOB JOB_FILES "${CMAKE_SOURCE_DIR}/scripts/job-*")
+
+foreach(JOB_FILE ${JOB_FILES})
+  configure_file(${JOB_FILE} ${CMAKE_BINARY_DIR} COPYONLY)
+endforeach()
+
+foreach(SH_FILE ${SH_FILES})
+  configure_file(${SH_FILE} ${CMAKE_BINARY_DIR} COPYONLY)
+endforeach()
