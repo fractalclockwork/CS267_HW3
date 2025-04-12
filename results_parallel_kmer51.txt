@@ -1,0 +1,99 @@
+Running with -N 1 and --ntasks-per-node=1
+Finished inserting in 61.285099 sec
+Assembled in 136.002856 total
+Running with -N 1 and --ntasks-per-node=2
+Finished inserting in 34.824000 sec
+Assembled in 138.320711 total
+Running with -N 1 and --ntasks-per-node=4
+Finished inserting in 32.137281 sec
+Assembled in 108.482213 total
+Running with -N 1 and --ntasks-per-node=8
+Finished inserting in 16.700882 sec
+Assembled in 60.895227 total
+Running with -N 1 and --ntasks-per-node=16
+Finished inserting in 7.892424 sec
+Assembled in 35.947635 total
+Running with -N 1 and --ntasks-per-node=32
+Finished inserting in 4.907484 sec
+Assembled in 19.719521 total
+Running with -N 1 and --ntasks-per-node=64
+Finished inserting in 2.588499 sec
+Assembled in 10.485733 total
+Running with -N 1 and --ntasks-per-node=128
+Finished inserting in 3.332514 sec
+Assembled in 7.727779 total
+
+Running with -N 2 and --ntasks-per-node=1
+Finished inserting in 33.673873 sec
+Assembled in 216.270044 total
+Running with -N 2 and --ntasks-per-node=2
+Finished inserting in 31.700934 sec
+Assembled in 141.978644 total
+Running with -N 2 and --ntasks-per-node=4
+Finished inserting in 17.882084 sec
+Assembled in 78.036363 total
+Running with -N 2 and --ntasks-per-node=8
+Finished inserting in 7.981530 sec
+Assembled in 38.999279 total
+Running with -N 2 and --ntasks-per-node=16
+Finished inserting in 4.031983 sec
+Assembled in 22.620205 total
+Running with -N 2 and --ntasks-per-node=32
+Finished inserting in 2.216837 sec
+Assembled in 12.206918 total
+Running with -N 2 and --ntasks-per-node=64
+Finished inserting in 1.445721 sec
+Assembled in 6.791644 total
+Running with -N 2 and --ntasks-per-node=128
+Finished inserting in 1.038461 sec
+Assembled in 3.783803 total
+
+Running with -N 3 and --ntasks-per-node=1
+Finished inserting in 42.584677 sec
+Assembled in 261.829604 total
+Running with -N 3 and --ntasks-per-node=2
+Finished inserting in 21.787594 sec
+Assembled in 138.418709 total
+Running with -N 3 and --ntasks-per-node=4
+Finished inserting in 12.011011 sec
+Assembled in 70.848890 total
+Running with -N 3 and --ntasks-per-node=8
+Finished inserting in 5.567155 sec
+Assembled in 35.702402 total
+Running with -N 3 and --ntasks-per-node=16
+Finished inserting in 2.634995 sec
+Assembled in 18.854000 total
+Running with -N 3 and --ntasks-per-node=32
+Finished inserting in 1.533250 sec
+Assembled in 10.323634 total
+Running with -N 3 and --ntasks-per-node=64
+Finished inserting in 1.015188 sec
+Assembled in 5.598765 total
+Running with -N 3 and --ntasks-per-node=128
+Finished inserting in 0.687903 sec
+Assembled in 3.053621 total
+
+Running with -N 4 and --ntasks-per-node=1
+Finished inserting in 31.888396 sec
+Assembled in 215.369635 total
+Running with -N 4 and --ntasks-per-node=2
+Finished inserting in 17.552166 sec
+Assembled in 112.417470 total
+Running with -N 4 and --ntasks-per-node=4
+Finished inserting in 7.391217 sec
+Assembled in 55.271559 total
+Running with -N 4 and --ntasks-per-node=8
+Finished inserting in 3.893287 sec
+Assembled in 28.489452 total
+Running with -N 4 and --ntasks-per-node=16
+Finished inserting in 1.873776 sec
+Assembled in 15.041629 total
+Running with -N 4 and --ntasks-per-node=32
+Finished inserting in 1.019840 sec
+Assembled in 8.094177 total
+Running with -N 4 and --ntasks-per-node=64
+Finished inserting in 0.725948 sec
+Assembled in 4.315666 total
+Running with -N 4 and --ntasks-per-node=128
+Finished inserting in 0.573039 sec
+Assembled in 2.461360 total

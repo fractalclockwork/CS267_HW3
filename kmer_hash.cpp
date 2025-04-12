@@ -143,9 +143,9 @@ int main(int argc, char **argv) {
     if(run_type != "test"){
         BUtil::print("Finished inserting in %lf sec\n", insert_duration);
         BUtil::print("Assembled in %lf total\n", total_duration);
+    } else {
+        output_results(contigs, test_prefix, rank_id, insert_duration, assembly_duration, total_duration);
     }
-    
-    output_results(contigs, test_prefix, rank_id, insert_duration, assembly_duration, total_duration);
     
     upcxx::finalize();
     return 0;
