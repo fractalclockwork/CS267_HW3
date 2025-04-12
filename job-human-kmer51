@@ -1,0 +1,32 @@
+#!/bin/bash
+#SBATCH -N 4
+#SBATCH -C cpu
+#SBATCH --qos=debug
+#SBATCH -J cs267-hw3-starter
+#SBATCH --ntasks-per-node=128
+#SBATCH -t 00:25:00
+
+#OpenMP settings:
+export OMP_NUM_THREADS=1
+export OMP_PLACES=threads
+export OMP_PROC_BIND=spread
+
+
+export UPCXX_SHARED_HEAP_SIZE=8192
+export GASNET_MAX_SEGSIZE=16G
+export UPCXX_SEGMENT_MB=128
+
+#run the application:
+#srun --cpu_bind=cores ./kmer_hash_51 /pscratch/sd/b/bathorne/my_data/human-chr14-synthetic.txt
+
+# Loop over N values 
+for N in 1 2 3 4; do
+  for ntasks in 1 2 4 8 16 32 64 128; do
+    echo "Running with -N $N and --ntasks-per-node=$ntasks"
+    srun --cpu_bind=cores -N "$N" --ntasks-per-node="$ntasks" ./kmer_hash_51 /pscratch/sd/b/bathorne/my_data/human-chr14-synthetic.txt
+    if [ $? -ne 0 ]; then
+      echo "Error encountered during execution with -N $N and --ntasks-per-node=$ntasks"
+      exit 1
+    fi
+  done
+done
