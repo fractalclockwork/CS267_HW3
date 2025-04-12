@@ -32,7 +32,7 @@ for N in 1; do
   for ntasks in 1; do
     for KMER_FILE in $KMER_FILES; do
       echo "Running with -N $N and --ntasks-per-node=$ntasks on file $KMER_FILE"
-      srun --cpu_bind=cores -N "$N" --ntasks-per-node="$ntasks" ./kmer_hash_19 "$KMER_FILE"
+      srun --cpu_bind=cores -N "$N" --ntasks-per-node="$ntasks" kmer_hash_19 "$KMER_FILE"
       if [ $? -ne 0 ]; then
         echo "Error encountered during execution with -N $N, --ntasks-per-node=$ntasks, and file $KMER_FILE"
         exit 1

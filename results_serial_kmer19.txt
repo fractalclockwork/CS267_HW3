@@ -1,0 +1,15 @@
+Running with -N 1 and --ntasks-per-node=1 on file /pscratch/sd/b/bathorne/my_data/little.txt
+Finished inserting in 0.029660 sec
+Assembled in 0.080258 sec
+Running with -N 1 and --ntasks-per-node=1 on file /pscratch/sd/b/bathorne/my_data/tiny.txt
+Finished inserting in 0.000630 sec
+Assembled in 0.001908 sec
+Running with -N 1 and --ntasks-per-node=1 on file /pscratch/sd/b/bathorne/my_data/test.txt
+Finished inserting in 1.981408 sec
+Assembled in 4.729069 sec
+Running with -N 1 and --ntasks-per-node=1 on file /pscratch/sd/b/bathorne/my_data/small.txt
+Finished inserting in 0.313196 sec
+Assembled in 0.828955 sec
+Running with -N 1 and --ntasks-per-node=1 on file /pscratch/sd/b/bathorne/my_data/verysmall.txt
+Finished inserting in 0.004122 sec
+Assembled in 0.011761 sec
