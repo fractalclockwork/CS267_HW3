@@ -1,0 +1,3 @@
+Running with -N 1 and --ntasks-per-node=1
+Finished inserting in 4.271885
+Assembled in 42.201469 total
