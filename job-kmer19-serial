@@ -1,0 +1,42 @@
+#!/bin/bash
+#SBATCH -N 4
+#SBATCH -C cpu
+#SBATCH --qos=debug
+#SBATCH -J cs267-hw3-starter
+#SBATCH --ntasks-per-node=128
+#SBATCH -t 00:25:00
+
+#OpenMP settings:
+export OMP_NUM_THREADS=1
+export OMP_PLACES=threads
+export OMP_PROC_BIND=spread
+
+
+#export UPCXX_SHARED_HEAP_SIZE=8192
+#export GASNET_MAX_SEGSIZE=16G
+#export UPCXX_SEGMENT_MB=128
+unset UPCXX_SHARED_HEAP_SIZE
+unset GASNET_MAX_SEGSIZE
+unset UPCXX_SEGMENT_MB
+
+#run the application:
+#srun --cpu_bind=cores ./kmer_hash_51 /pscratch/sd/b/bathorne/my_data/human-chr14-synthetic.txt
+
+#!/bin/bash
+
+# Find and store the list of files
+KMER_FILES=$(find "$MY_DATA" -name "*.txt" ! -name "*_solution*" ! -name "*human*")
+
+# Loop over N values
+for N in 1; do
+  for ntasks in 1; do
+    for KMER_FILE in $KMER_FILES; do
+      echo "Running with -N $N and --ntasks-per-node=$ntasks on file $KMER_FILE"
+      srun --cpu_bind=cores -N "$N" --ntasks-per-node="$ntasks" ./kmer_hash_19 "$KMER_FILE"
+      if [ $? -ne 0 ]; then
+        echo "Error encountered during execution with -N $N, --ntasks-per-node=$ntasks, and file $KMER_FILE"
+        exit 1
+      fi
+    done
+  done
+done
