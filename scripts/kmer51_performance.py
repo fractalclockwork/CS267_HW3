@@ -19,11 +19,11 @@ for N, times in data.items():
 # Labels, legend, and grid
 plt.xlabel('Number of tasks per node')
 plt.ylabel('Assembled Time (s)')
-plt.title('Raw Performance (parallel kmer51 human-chromosome)')
+plt.title('Raw Performance (parallel kmer51)')
 plt.legend()
 plt.grid(True, which="both", linestyle="--")
 
 # Save plot as PNG
-plt.savefig("performance_plot.png", dpi=300)
+plt.savefig("kmer51_performance_plot.png", dpi=300)
 #plt.show()
 
