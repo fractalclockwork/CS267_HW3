@@ -1,0 +1,30 @@
+Running with -N 1 and --ntasks-per-node=64
+Finished inserting in 2.588499 sec
+
+Running with -N 2 and --ntasks-per-node=64
+Finished inserting in 1.445721 sec
+Assembled in 6.791644 total
+
+Running with -N 3 and --ntasks-per-node=64
+Finished inserting in 1.015188 sec
+Assembled in 5.598765 total
+
+Running with -N 4 and --ntasks-per-node=64
+Finished inserting in 0.725948 sec
+Assembled in 4.315666 total
+
+Running with -N 1 and --ntasks-per-node=60
+Finished inserting in 4.888976 sec
+Assembled in 13.883080 total
+
+Running with -N 2 and --ntasks-per-node=60
+Finished inserting in 3.087437 sec
+Assembled in 9.946318 total
+
+Running with -N 3 and --ntasks-per-node=60
+Finished inserting in 1.919023 sec
+Assembled in 6.978182 total
+
+Running with -N 4 and --ntasks-per-node=60
+Finished inserting in 1.078866 sec
+Assembled in 4.890504 total

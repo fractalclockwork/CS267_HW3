@@ -1,0 +1,126 @@
+Running with -N 1 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/little.txt
+Finished inserting in 0.002862 sec
+Assembled in 0.033846 total
+Running with -N 1 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/tiny.txt
+Finished inserting in 0.000896 sec
+Assembled in 0.013288 total
+Running with -N 1 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/test.txt
+Finished inserting in 0.057493 sec
+Assembled in 0.475044 total
+Running with -N 1 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/small.txt
+Finished inserting in 0.012524 sec
+Assembled in 0.110340 total
+Running with -N 1 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/verysmall.txt
+Finished inserting in 0.001404 sec
+Assembled in 0.017927 total
+Running with -N 2 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/little.txt
+Finished inserting in 0.002599 sec
+Assembled in 0.033826 total
+Running with -N 2 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/tiny.txt
+Finished inserting in 0.000586 sec
+Assembled in 0.017380 total
+Running with -N 2 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/test.txt
+Finished inserting in 0.032055 sec
+Assembled in 0.365957 total
+Running with -N 2 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/small.txt
+Finished inserting in 0.007717 sec
+Assembled in 0.103425 total
+Running with -N 2 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/verysmall.txt
+Finished inserting in 0.001480 sec
+Assembled in 0.026297 total
+
+Running with -N 3 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/little.txt
+Finished inserting in 0.002726 sec
+Assembled in 0.033654 total
+Running with -N 3 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/tiny.txt
+Finished inserting in 0.000461 sec
+Assembled in 0.019777 total
+Running with -N 3 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/test.txt
+Finished inserting in 0.022500 sec
+Assembled in 0.300998 total
+Running with -N 3 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/small.txt
+Finished inserting in 0.006867 sec
+Assembled in 0.108469 total
+Running with -N 3 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/verysmall.txt
+Finished inserting in 0.001248 sec
+Assembled in 0.028532 total
+
+Running with -N 4 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/little.txt
+Finished inserting in 0.002840 sec
+Assembled in 0.033911 total
+Running with -N 4 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/tiny.txt
+Finished inserting in 0.000391 sec
+Assembled in 0.020475 total
+Running with -N 4 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/test.txt
+Finished inserting in 0.016795 sec
+Assembled in 0.249688 total
+Running with -N 4 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/small.txt
+Finished inserting in 0.005670 sec
+Assembled in 0.086336 total
+Running with -N 4 and --ntasks-per-node=64 on file /pscratch/sd/b/bathorne/my_data/verysmall.txt
+Finished inserting in 0.000976 sec
+Assembled in 0.027775 total
+
+Running with -N 1 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/little.txt
+Finished inserting in 0.002974 sec
+Assembled in 0.031970 total
+Running with -N 1 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/tiny.txt
+Finished inserting in 0.000894 sec
+Assembled in 0.012586 total
+Running with -N 1 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/test.txt
+Finished inserting in 0.060970 sec
+Assembled in 0.528498 total
+Running with -N 1 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/small.txt
+Finished inserting in 0.012834 sec
+Assembled in 0.127048 total
+Running with -N 1 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/verysmall.txt
+Finished inserting in 0.001332 sec
+Assembled in 0.018429 total
+
+Running with -N 2 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/little.txt
+Finished inserting in 0.002480 sec
+Assembled in 0.033045 total
+Running with -N 2 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/tiny.txt
+Finished inserting in 0.000666 sec
+Assembled in 0.022592 total
+Running with -N 2 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/test.txt
+Finished inserting in 0.031932 sec
+Assembled in 0.484606 total
+Running with -N 2 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/small.txt
+Finished inserting in 0.007956 sec
+Assembled in 0.133171 total
+Running with -N 2 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/verysmall.txt
+Finished inserting in 0.001531 sec
+Assembled in 0.032551 total
+
+Running with -N 3 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/little.txt
+Finished inserting in 0.002909 sec
+Assembled in 0.041487 total
+Running with -N 3 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/tiny.txt
+Finished inserting in 0.000490 sec
+Assembled in 0.027050 total
+Running with -N 3 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/test.txt
+Finished inserting in 0.024091 sec
+Assembled in 0.432433 total
+Running with -N 3 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/small.txt
+Finished inserting in 0.007078 sec
+Assembled in 0.130418 total
+Running with -N 3 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/verysmall.txt
+Finished inserting in 0.001434 sec
+Assembled in 0.038666 total
+
+Running with -N 4 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/little.txt
+Finished inserting in 0.003216 sec
+Assembled in 0.044262 total
+Running with -N 4 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/tiny.txt
+Finished inserting in 0.000420 sec
+Assembled in 0.028342 total
+Running with -N 4 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/test.txt
+Finished inserting in 0.018111 sec
+Assembled in 0.329213 total
+Running with -N 4 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/small.txt
+Finished inserting in 0.006439 sec
+Assembled in 0.119585 total
+Running with -N 4 and --ntasks-per-node=60 on file /pscratch/sd/b/bathorne/my_data/verysmall.txt
+Finished inserting in 0.001202 sec
+Assembled in 0.035282 total
